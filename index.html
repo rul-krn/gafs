@@ -1,0 +1,887 @@
+<!DOCTYPE html>
+<html lang="id" class="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Verinris - Galeri Seni 3D FPS & Alur Inspirasi</title>
+
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        brand: {
+                            50: '#f0f3ff',
+                            100: '#e0e7ff',
+                            500: '#6366f1',
+                            600: '#4f46e5',
+                            700: '#4338ca',
+                            accent: '#e60023',
+                            neon: '#00f3ff'
+                        }
+                    },
+                    fontFamily: {
+                        sans: ['Inter', 'sans-serif']
+                    }
+                }
+            }
+        }
+    </script>
+
+    <!-- Font Awesome & Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Fira+Code:wght@400;600&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
+    <!-- Three.js Library -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #030712;
+            color: #f3f4f6;
+            overflow-x: hidden;
+            user-select: none;
+        }
+
+        /* Custom Scrollbar */
+        ::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+        ::-webkit-scrollbar-track {
+            background: rgba(15, 23, 42, 0.8);
+        }
+        ::-webkit-scrollbar-thumb {
+            background: rgba(99, 102, 241, 0.5);
+            border-radius: 9999px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: rgba(99, 102, 241, 0.8);
+        }
+
+        /* Responsif Masonry Grid untuk Mode 2D Feed */
+        .masonry-grid {
+            column-count: 2;
+            column-gap: 1.25rem;
+        }
+        @media (min-width: 640px) { .masonry-grid { column-count: 3; } }
+        @media (min-width: 1024px) { .masonry-grid { column-count: 4; } }
+        @media (min-width: 1280px) { .masonry-grid { column-count: 5; } }
+
+        .masonry-item {
+            break-inside: avoid;
+            margin-bottom: 1.25rem;
+        }
+
+        /* Crosshair FPS Mode */
+        #crosshair {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            width: 12px;
+            height: 12px;
+            transform: translate(-50%, -50%);
+            pointer-events: none;
+            z-index: 30;
+        }
+        #crosshair::before, #crosshair::after {
+            content: '';
+            position: absolute;
+            background: rgba(0, 243, 255, 0.9);
+            box-shadow: 0 0 8px #00f3ff;
+        }
+        #crosshair::before {
+            top: 5px;
+            left: 0;
+            width: 12px;
+            height: 2px;
+        }
+        #crosshair::after {
+            top: 0;
+            left: 5px;
+            width: 2px;
+            height: 12px;
+        }
+
+        /* Glassmorphism Panels */
+        .glass-panel {
+            background: rgba(15, 23, 42, 0.85);
+            backdrop-filter: blur(16px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .glow-neon {
+            box-shadow: 0 0 20px rgba(0, 243, 255, 0.35);
+        }
+    </style>
+</head>
+<body class="bg-slate-950 text-slate-100 min-h-screen flex flex-col relative select-none">
+
+    <!-- HEADER / BILAH NAVIGASI -->
+    <header class="fixed top-0 left-0 right-0 z-40 bg-slate-950/90 backdrop-blur-md border-b border-slate-800/80 transition-colors">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between gap-3 sm:gap-6">
+            
+            <!-- Logo & Brand -->
+            <div class="flex items-center gap-4 sm:gap-6">
+                <a href="#" id="brand-logo" class="flex items-center gap-2 group">
+                    <div class="w-10 h-10 rounded-full bg-brand-accent flex items-center justify-center text-white font-black text-xl shadow-md group-hover:scale-105 transition-transform">
+                        V
+                    </div>
+                    <span class="text-xl font-extrabold tracking-tight bg-gradient-to-r from-white via-indigo-200 to-red-400 bg-clip-text text-transparent hidden sm:inline-block">
+                        Verinris
+                    </span>
+                </a>
+
+                <!-- Nav Controls -->
+                <nav class="hidden md:flex items-center gap-2 font-medium text-xs">
+                    <button id="view-mode-toggle" class="px-4 py-2 rounded-full bg-gradient-to-r from-indigo-600 to-cyan-500 hover:from-indigo-500 hover:to-cyan-400 text-white font-bold shadow-lg transition-all flex items-center gap-2 glow-neon">
+                        <i class="fa-solid fa-cube text-sm"></i>
+                        <span id="view-mode-text">Masuk Mode Galeri 3D FPS</span>
+                    </button>
+                    <button id="nav-saved-btn" class="px-3.5 py-2 rounded-full hover:bg-slate-800 text-slate-300 transition-all flex items-center gap-2">
+                        <span>Pin Tersimpan</span>
+                        <span id="saved-count-badge" class="bg-brand-accent text-white text-xs px-2 py-0.5 rounded-full font-bold">0</span>
+                    </button>
+                    <button id="nav-backend-btn" class="px-3.5 py-2 rounded-full hover:bg-slate-800 text-slate-300 transition-all flex items-center gap-1.5 text-indigo-400 font-semibold">
+                        <i class="fa-solid fa-code"></i>
+                        <span>Mesin Data C++</span>
+                    </button>
+                </nav>
+            </div>
+
+            <!-- Form Pencarian -->
+            <div class="flex-1 max-w-xl relative">
+                <form id="search-form" class="relative flex items-center">
+                    <i class="fa-solid fa-magnifying-glass absolute left-4 text-slate-400"></i>
+                    <input type="text" id="search-input" placeholder="Cari karya visual (cth: Cyberpunk, Gunung, Pemandangan, Abstract)..." 
+                        class="w-full pl-11 pr-10 py-2 rounded-full bg-slate-900/90 border border-slate-700/80 focus:border-cyan-400 text-xs text-white focus:outline-none focus:ring-2 focus:ring-cyan-500/20 transition-all">
+                    <button type="button" id="clear-search" class="hidden absolute right-3 text-slate-400 hover:text-slate-200">
+                        <i class="fa-solid fa-circle-xmark"></i>
+                    </button>
+                </form>
+            </div>
+
+            <!-- Right Controls -->
+            <div class="flex items-center gap-2">
+                <button id="upload-pin-btn" class="w-10 h-10 rounded-full bg-brand-accent hover:bg-red-700 text-white flex items-center justify-center shadow-md transition transform hover:scale-105" title="Tambah Karya Baru">
+                    <i class="fa-solid fa-plus text-base"></i>
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <!-- MODE 2D MASONRY FEED -->
+    <main id="masonry-view-container" class="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 pt-24 pb-12 z-20">
+        <!-- Filter Category Chips -->
+        <div id="category-chips" class="flex items-center gap-2 overflow-x-auto pb-4 mb-6 text-xs no-scrollbar">
+            <button class="cat-chip px-4 py-2 rounded-full bg-white text-slate-900 font-bold shadow transition shrink-0" data-category="Cyberpunk">Cyberpunk 3D</button>
+            <button class="cat-chip px-4 py-2 rounded-full bg-slate-900 hover:bg-slate-800 text-slate-300 font-semibold border border-slate-800 transition shrink-0" data-category="Nature">Alam & Pegunungan</button>
+            <button class="cat-chip px-4 py-2 rounded-full bg-slate-900 hover:bg-slate-800 text-slate-300 font-semibold border border-slate-800 transition shrink-0" data-category="Futuristic">Futuristik</button>
+            <button class="cat-chip px-4 py-2 rounded-full bg-slate-900 hover:bg-slate-800 text-slate-300 font-semibold border border-slate-800 transition shrink-0" data-category="Architecture">Arsitektur</button>
+            <button class="cat-chip px-4 py-2 rounded-full bg-slate-900 hover:bg-slate-800 text-slate-300 font-semibold border border-slate-800 transition shrink-0" data-category="Abstract">Seni Abstrak</button>
+        </div>
+
+        <div id="view-header" class="flex items-center justify-between mb-6">
+            <div>
+                <h1 id="gallery-title" class="text-2xl font-bold tracking-tight text-white">Jelajahi Inspirasi Visual</h1>
+                <p id="gallery-subtitle" class="text-xs text-slate-400 mt-1">Koleksi karya seni digital dan lukisan siap dipamerkan dalam galeri 3D</p>
+            </div>
+            <button id="switch-to-3d-btn" class="px-5 py-2.5 rounded-full bg-cyan-500/20 text-cyan-300 border border-cyan-500/40 text-xs font-bold hover:bg-cyan-500/30 transition flex items-center gap-2">
+                <i class="fa-solid fa-cube text-sm"></i> Buka dalam Galeri 3D FPS
+            </button>
+        </div>
+
+        <div id="masonry-container" class="masonry-grid">
+            <!-- Feed 2D Masonry items dipopulasi melalui JS -->
+        </div>
+    </main>
+
+    <!-- SCENE 3D FPS -->
+    <div id="fps-view-container" class="fixed inset-0 w-full h-full z-10 bg-slate-950 hidden">
+        <canvas id="three-canvas" class="w-full h-full block cursor-pointer"></canvas>
+        <div id="crosshair"></div>
+
+        <!-- FPS HUD -->
+        <div id="fps-hud" class="absolute bottom-6 left-6 z-20 glass-panel p-4 rounded-2xl max-w-sm text-xs border border-cyan-500/30">
+            <div class="flex items-center justify-between border-b border-slate-700/60 pb-2 mb-2">
+                <span class="font-bold text-cyan-400 uppercase tracking-wider flex items-center gap-1.5">
+                    <span class="w-2 h-2 rounded-full bg-cyan-400 animate-ping"></span>
+                    Kontrol Mode 3D FPS
+                </span>
+                <span id="fps-lock-status" class="bg-red-500/20 text-red-400 text-[10px] px-2 py-0.5 rounded font-mono font-bold">KLIK LAYAR UNTUK KONTROL</span>
+            </div>
+            <div class="grid grid-cols-2 gap-2 text-slate-300 font-mono text-[11px]">
+                <div><span class="text-amber-400 font-bold">W A S D</span> : Berjalan</div>
+                <div><span class="text-amber-400 font-bold">Mouse</span> : Lihat Sekeliling</div>
+                <div><span class="text-amber-400 font-bold">Klik / E</span> : Detail Lukisan</div>
+                <div><span class="text-amber-400 font-bold">ESC</span> : Lepas Tetikus</div>
+            </div>
+            <div class="mt-3 pt-2 border-t border-slate-800 text-[10px] text-slate-400 flex justify-between items-center">
+                <span>Efek Suara Langkah: <b id="footstep-status" class="text-emerald-400">AKTIF</b></span>
+                <button id="exit-3d-hud-btn" class="px-2 py-1 bg-red-600/80 hover:bg-red-600 text-white rounded font-sans text-[11px] font-bold transition">Kembali ke 2D</button>
+            </div>
+        </div>
+
+        <!-- Overlay Hover Label -->
+        <div id="fps-hover-label" class="absolute z-20 hidden glass-panel px-3 py-1.5 rounded-lg text-xs font-semibold text-cyan-300 border border-cyan-400/40 pointer-events-none transform -translate-x-1/2 -translate-y-12 transition-all">
+            <i class="fa-solid fa-hand-pointer mr-1"></i> <span id="fps-hover-text">Klik Lukisan untuk Detail</span>
+        </div>
+    </div>
+
+    <!-- MODAL DETAIL GAMBAR -->
+    <div id="pin-modal" class="fixed inset-0 z-50 flex items-center justify-center bg-black/85 backdrop-blur-lg p-3 sm:p-6 hidden transition-opacity duration-300">
+        <div class="bg-slate-900 border border-slate-700/80 w-full max-w-5xl max-h-[92vh] rounded-3xl overflow-hidden shadow-2xl flex flex-col md:flex-row relative">
+            <button id="close-modal-btn" class="absolute top-4 right-4 z-20 w-10 h-10 rounded-full bg-slate-950/80 text-white hover:bg-red-600 transition flex items-center justify-center border border-slate-700">
+                <i class="fa-solid fa-xmark text-lg"></i>
+            </button>
+
+            <div class="md:w-3/5 bg-slate-950 flex items-center justify-center relative overflow-hidden group min-h-[320px] md:min-h-[550px] p-4">
+                <img id="modal-image" src="" alt="Detail Karya Seni" class="max-h-[80vh] w-auto object-contain mx-auto rounded-lg shadow-2xl">
+                <div class="absolute bottom-4 left-4 glass-panel text-white text-xs px-3.5 py-1.5 rounded-full flex items-center gap-2 border border-slate-700">
+                    <span id="modal-source-badge" class="font-bold text-cyan-400">Mesin 3D Verinris</span>
+                </div>
+            </div>
+
+            <div class="md:w-2/5 p-6 sm:p-8 flex flex-col justify-between overflow-y-auto bg-slate-900/90">
+                <div>
+                    <div class="flex items-center justify-between mb-6">
+                        <div class="flex items-center gap-2">
+                            <button id="modal-share-btn" class="w-10 h-10 rounded-full bg-slate-800 hover:bg-slate-700 text-slate-200 flex items-center justify-center transition" title="Bagikan">
+                                <i class="fa-solid fa-share-nodes"></i>
+                            </button>
+                            <a id="modal-download-btn" href="#" download target="_blank" class="w-10 h-10 rounded-full bg-slate-800 hover:bg-slate-700 text-slate-200 flex items-center justify-center transition" title="Unduh Gambar">
+                                <i class="fa-solid fa-download"></i>
+                            </a>
+                        </div>
+                        <button id="modal-save-btn" class="px-6 py-2.5 rounded-full bg-brand-accent hover:bg-red-700 text-white font-bold text-sm shadow-md transition flex items-center gap-2">
+                            <i class="fa-solid fa-bookmark"></i>
+                            <span>Simpan Pin</span>
+                        </button>
+                    </div>
+
+                    <h2 id="modal-title" class="text-xl font-extrabold text-white leading-tight mb-3">Visi 3D Cyberpunk #10</h2>
+                    <p id="modal-description" class="text-xs text-slate-300 leading-relaxed mb-6">Pameran 3D virtual yang menampilkan karya seni kreatif prosedural yang berpusat pada Cyberpunk.</p>
+
+                    <div class="flex items-center justify-between border-y border-slate-800 py-4 mb-6">
+                        <div class="flex items-center gap-3">
+                            <img id="modal-avatar" src="" class="w-10 h-10 rounded-full object-cover border border-cyan-400">
+                            <div>
+                                <h4 id="modal-author" class="font-bold text-sm text-white">Galeri_Seniman_10</h4>
+                                <p class="text-[11px] text-slate-400">Artis 3D Unggulan</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div id="modal-tags-container" class="flex flex-wrap gap-1.5 mb-6">
+                        <span class="px-2.5 py-1 rounded-full bg-slate-800 text-cyan-300 text-[11px] font-semibold">#cyberpunk</span>
+                        <span class="px-2.5 py-1 rounded-full bg-slate-800 text-cyan-300 text-[11px] font-semibold">#seni-3d</span>
+                    </div>
+                </div>
+
+                <button id="modal-close-return-3d" class="w-full py-3 bg-cyan-600 hover:bg-cyan-500 text-white font-bold rounded-xl text-xs shadow-lg transition">
+                    Kembali ke Panduan 3D
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL DRAWER KODE BACKEND C++ -->
+    <div id="code-drawer-modal" class="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-md p-4 hidden">
+        <div class="bg-slate-900 text-slate-100 w-full max-w-4xl max-h-[90vh] rounded-2xl overflow-hidden shadow-2xl flex flex-col border border-slate-800">
+            <div class="px-6 py-4 border-b border-slate-800 flex items-center justify-between bg-slate-950">
+                <div class="flex items-center gap-3">
+                    <div class="w-3 h-3 rounded-full bg-red-500"></div>
+                    <div class="w-3 h-3 rounded-full bg-yellow-500"></div>
+                    <div class="w-3 h-3 rounded-full bg-green-500"></div>
+                    <span class="text-sm font-mono text-slate-400 ml-2">Pipeline Data C++ Verinris</span>
+                </div>
+                <button id="close-code-drawer" class="text-slate-400 hover:text-white text-lg">
+                    <i class="fa-solid fa-xmark"></i>
+                </button>
+            </div>
+
+            <div class="p-6 overflow-y-auto font-mono text-xs leading-relaxed bg-slate-950 flex-1">
+                <pre class="text-emerald-400"><code><span class="text-purple-400">#include</span> <span class="text-amber-300">&lt;iostream&gt;</span>
+<span class="text-purple-400">#include</span> <span class="text-amber-300">&lt;vector&gt;</span>
+
+<span class="text-blue-400">struct</span> <span class="text-yellow-300">PinData</span> {
+    std::string id;
+    std::string imageUrl;
+    std::string title;
+};</code></pre>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL UNGGAH PIN BARU -->
+    <div id="upload-modal" class="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4 hidden">
+        <div class="bg-slate-900 text-white w-full max-w-lg rounded-2xl p-6 shadow-2xl relative border border-slate-700">
+            <button id="close-upload-btn" class="absolute top-4 right-4 text-slate-400 hover:text-white">
+                <i class="fa-solid fa-xmark text-lg"></i>
+            </button>
+            <h3 class="text-lg font-bold text-white mb-1">Tambah Gambar ke Galeri</h3>
+            <p class="text-xs text-slate-400 mb-6">Gambar buatanmu akan langsung dipajang di galeri 3D dan feed 2D.</p>
+
+            <form id="upload-form" class="space-y-4">
+                <div>
+                    <label class="block text-xs font-semibold text-slate-300 mb-1">Judul Karya Seni</label>
+                    <input type="text" id="up-title" required placeholder="cth: Pemandangan Gunung Es" class="w-full text-xs px-3.5 py-2.5 rounded-lg border border-slate-700 bg-slate-800 text-white focus:outline-none focus:ring-2 focus:ring-cyan-400">
+                </div>
+                <div>
+                    <label class="block text-xs font-semibold text-slate-300 mb-1">URL Gambar Langsung</label>
+                    <input type="url" id="up-url" required placeholder="https://images.unsplash.com/..." class="w-full text-xs px-3.5 py-2.5 rounded-lg border border-slate-700 bg-slate-800 text-white focus:outline-none focus:ring-2 focus:ring-cyan-400">
+                </div>
+                <button type="submit" class="w-full py-3 bg-brand-accent hover:bg-red-700 text-white font-bold rounded-lg text-xs shadow-md transition">
+                    Pajang di Galeri 3D
+                </button>
+            </form>
+        </div>
+    </div>
+
+    <!-- Notifikasi Toast -->
+    <div id="toast" class="fixed bottom-6 right-6 z-50 bg-slate-900 text-white border border-slate-700 px-5 py-3 rounded-2xl shadow-2xl flex items-center gap-3 text-xs font-bold transition-all duration-300 transform translate-y-20 opacity-0 pointer-events-none">
+        <i id="toast-icon" class="fa-solid fa-circle-check text-cyan-400 text-base"></i>
+        <span id="toast-message">Pin berhasil disimpan!</span>
+    </div>
+
+    <script>
+        // APP STATE
+        let loadedPins = [];
+        let savedPinIds = new Set(JSON.parse(localStorage.getItem('verinris_saved_pins') || '[]'));
+        let currentQuery = 'Cyberpunk';
+        let is3DMode = false;
+        let activePin = null;
+
+        // EFEK SUARA FOOTSTEP (FIXED AUDIO CONTEXT)
+        let audioCtx = null;
+        let lastFootstepTime = 0;
+
+        function initAudio() {
+            if (!audioCtx) {
+                audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+            }
+            if (audioCtx.state === 'suspended') {
+                audioCtx.resume();
+            }
+        }
+
+        function playFootstepSound() {
+            try {
+                initAudio();
+                const now = audioCtx.currentTime;
+                if (now - lastFootstepTime < 0.35) return;
+                lastFootstepTime = now;
+
+                const bufferSize = audioCtx.sampleRate * 0.06;
+                const buffer = audioCtx.createBuffer(1, bufferSize, audioCtx.sampleRate);
+                const output = buffer.getChannelData(0);
+                for (let i = 0; i < bufferSize; i++) {
+                    output[i] = Math.random() * 2 - 1;
+                }
+
+                const whiteNoise = audioCtx.createBufferSource();
+                whiteNoise.buffer = buffer;
+
+                const filter = audioCtx.createBiquadFilter();
+                filter.type = 'bandpass';
+                filter.frequency.setValueAtTime(600, now);
+
+                const gainNode = audioCtx.createGain();
+                gainNode.gain.setValueAtTime(0.18, now);
+                gainNode.gain.exponentialRampToValueAtTime(0.01, now + 0.05);
+
+                whiteNoise.connect(filter);
+                filter.connect(gainNode);
+                gainNode.connect(audioCtx.destination);
+
+                whiteNoise.start(now);
+            } catch (e) {
+                console.log("Audio Error:", e);
+            }
+        }
+
+        // DOM ELEMENTS
+        const viewModeToggle = document.getElementById('view-mode-toggle');
+        const viewModeText = document.getElementById('view-mode-text');
+        const fpsViewContainer = document.getElementById('fps-view-container');
+        const masonryViewContainer = document.getElementById('masonry-view-container');
+        const masonryContainer = document.getElementById('masonry-container');
+        const switchTo3dBtn = document.getElementById('switch-to-3d-btn');
+        const exit3dHudBtn = document.getElementById('exit-3d-hud-btn');
+
+        const searchForm = document.getElementById('search-form');
+        const searchInput = document.getElementById('search-input');
+        const clearSearchBtn = document.getElementById('clear-search');
+        const savedCountBadge = document.getElementById('saved-count-badge');
+        const fpsLockStatus = document.getElementById('fps-lock-status');
+        const fpsHoverLabel = document.getElementById('fps-hover-label');
+        const fpsHoverText = document.getElementById('fps-hover-text');
+
+        // MODAL ELEMENTS
+        const pinModal = document.getElementById('pin-modal');
+        const closeModalBtn = document.getElementById('close-modal-btn');
+        const modalImage = document.getElementById('modal-image');
+        const modalTitle = document.getElementById('modal-title');
+        const modalDescription = document.getElementById('modal-description');
+        const modalAuthor = document.getElementById('modal-author');
+        const modalAvatar = document.getElementById('modal-avatar');
+        const modalSourceBadge = document.getElementById('modal-source-badge');
+        const modalSaveBtn = document.getElementById('modal-save-btn');
+        const modalTagsContainer = document.getElementById('modal-tags-container');
+        const modalDownloadBtn = document.getElementById('modal-download-btn');
+        const modalCloseReturn3d = document.getElementById('modal-close-return-3d');
+
+        const codeDrawerModal = document.getElementById('code-drawer-modal');
+        const navBackendBtn = document.getElementById('nav-backend-btn');
+        const closeCodeDrawerBtn = document.getElementById('close-code-drawer');
+
+        const uploadPinBtn = document.getElementById('upload-pin-btn');
+        const uploadModal = document.getElementById('upload-modal');
+        const closeUploadBtn = document.getElementById('close-upload-btn');
+        const uploadForm = document.getElementById('upload-form');
+
+        // THREE.JS SCENE SETUP
+        let scene, camera, renderer;
+        let pictureFrameMeshes = [];
+        let raycaster = new THREE.Raycaster();
+        let mouseCenter = new THREE.Vector2(0, 0);
+
+        // FPS MOVEMENT & ROTATION (FIXED)
+        let isPointerLocked = false;
+        let moveForward = false, moveBackward = false, moveLeft = false, moveRight = false;
+        let velocity = new THREE.Vector3();
+        let direction = new THREE.Vector3();
+        let prevTime = performance.now();
+
+        let pitch = 0, yaw = 0;
+        let headBobTimer = 0;
+
+        function init3DWorld() {
+            const canvas = document.getElementById('three-canvas');
+            
+            scene = new THREE.Scene();
+            scene.background = new THREE.Color(0x030712);
+            scene.fog = new THREE.FogExp2(0x030712, 0.018);
+
+            camera = new THREE.PerspectiveCamera(70, window.innerWidth / window.innerHeight, 0.1, 1000);
+            camera.position.set(0, 2, 8);
+
+            renderer = new THREE.WebGLRenderer({ canvas: canvas, antialias: true, powerPreference: "high-performance" });
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+
+            const ambientLight = new THREE.AmbientLight(0xffffff, 0.85);
+            scene.add(ambientLight);
+
+            const centerLight = new THREE.PointLight(0x00f3ff, 2.5, 60);
+            centerLight.position.set(0, 8, 0);
+            scene.add(centerLight);
+
+            const gridHelper = new THREE.GridHelper(120, 60, 0x00f3ff, 0x1e293b);
+            scene.add(gridHelper);
+
+            const floorGeo = new THREE.PlaneGeometry(120, 120);
+            const floorMat = new THREE.MeshStandardMaterial({ color: 0x050b14, roughness: 0.2 });
+            const floorMesh = new THREE.Mesh(floorGeo, floorMat);
+            floorMesh.rotation.x = -Math.PI / 2;
+            scene.add(floorMesh);
+
+            canvas.addEventListener('click', () => {
+                initAudio();
+                if (is3DMode && !isPointerLocked) {
+                    canvas.requestPointerLock();
+                }
+            });
+
+            document.addEventListener('pointerlockchange', onPointerLockChange);
+            document.addEventListener('mousemove', onMouseMove);
+            document.addEventListener('keydown', onKeyDown);
+            document.addEventListener('keyup', onKeyUp);
+            window.addEventListener('resize', onWindowResize);
+
+            animate3D();
+        }
+
+        function onPointerLockChange() {
+            if (document.pointerLockElement === document.getElementById('three-canvas')) {
+                isPointerLocked = true;
+                fpsLockStatus.textContent = "KONTROL FPS AKTIF";
+                fpsLockStatus.className = "bg-emerald-500/20 text-emerald-400 text-[10px] px-2 py-0.5 rounded font-mono font-bold";
+            } else {
+                isPointerLocked = false;
+                fpsLockStatus.textContent = "KLIK LAYAR UNTUK KONTROL";
+                fpsLockStatus.className = "bg-red-500/20 text-red-400 text-[10px] px-2 py-0.5 rounded font-mono font-bold";
+            }
+        }
+
+        // ROTASI KAMERA TANPA EULER GLITCH (PERBAIKAN FITUR ROTASI)
+        function onMouseMove(event) {
+            if (!isPointerLocked) return;
+
+            const movementX = event.movementX || 0;
+            const movementY = event.movementY || 0;
+
+            yaw -= movementX * 0.002;
+            pitch -= movementY * 0.002;
+
+            pitch = Math.max(-Math.PI / 2 + 0.1, Math.min(Math.PI / 2 - 0.1, pitch));
+
+            camera.rotation.order = 'YXZ';
+            camera.rotation.x = pitch;
+            camera.rotation.y = yaw;
+        }
+
+        function onKeyDown(event) {
+            initAudio();
+            switch (event.code) {
+                case 'KeyW': moveForward = true; break;
+                case 'KeyS': moveBackward = true; break;
+                case 'KeyA': moveLeft = true; break;
+                case 'KeyD': moveRight = true; break;
+                case 'KeyE': 
+                    if (is3DMode && window.hoveredPinData) {
+                        document.exitPointerLock();
+                        openPinModal(window.hoveredPinData);
+                    }
+                    break;
+            }
+        }
+
+        function onKeyUp(event) {
+            switch (event.code) {
+                case 'KeyW': moveForward = false; break;
+                case 'KeyS': moveBackward = false; break;
+                case 'KeyA': moveLeft = false; break;
+                case 'KeyD': moveRight = false; break;
+            }
+        }
+
+        function onWindowResize() {
+            if (!camera || !renderer) return;
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        }
+
+        // REGENERASI MESH SAAT KATAGORI BERUBAH (FIXED PEMBARUAN GALERI)
+        function build3DGalleryNodes(pins) {
+            pictureFrameMeshes.forEach(group => {
+                scene.remove(group);
+                group.traverse(child => {
+                    if (child.geometry) child.geometry.dispose();
+                    if (child.material) {
+                        if (Array.isArray(child.material)) child.material.forEach(m => m.dispose());
+                        else child.material.dispose();
+                    }
+                });
+            });
+            pictureFrameMeshes = [];
+
+            const textureLoader = new THREE.TextureLoader();
+            const count = pins.length;
+            const radius = 18;
+
+            pins.forEach((pin, index) => {
+                const angle = (index / count) * Math.PI * 2;
+                const x = Math.sin(angle) * radius;
+                const z = Math.cos(angle) * radius;
+                const y = 2.5;
+
+                textureLoader.load(pin.imageUrl, (texture) => {
+                    const imgGeo = new THREE.PlaneGeometry(4, 3);
+                    const imgMat = new THREE.MeshBasicMaterial({ map: texture, side: THREE.DoubleSide });
+                    const imgMesh = new THREE.Mesh(imgGeo, imgMat);
+
+                    const borderGeo = new THREE.BoxGeometry(4.2, 3.2, 0.1);
+                    const borderMat = new THREE.MeshStandardMaterial({
+                        color: index % 2 === 0 ? 0x00f3ff : 0xe60023,
+                        metalness: 0.8
+                    });
+                    const borderMesh = new THREE.Mesh(borderGeo, borderMat);
+                    borderMesh.position.z = -0.05;
+
+                    const frameGroup = new THREE.Group();
+                    frameGroup.add(imgMesh);
+                    frameGroup.add(borderMesh);
+                    frameGroup.position.set(x, y, z);
+                    frameGroup.lookAt(0, y, 0);
+                    frameGroup.userData = pin;
+
+                    scene.add(frameGroup);
+                    pictureFrameMeshes.push(frameGroup);
+                });
+            });
+        }
+
+        function animate3D() {
+            requestAnimationFrame(animate3D);
+
+            const time = performance.now();
+            const delta = (time - prevTime) / 1000;
+            prevTime = time;
+
+            if (is3DMode && isPointerLocked) {
+                velocity.x -= velocity.x * 10.0 * delta;
+                velocity.z -= velocity.z * 10.0 * delta;
+
+                direction.z = Number(moveForward) - Number(moveBackward);
+                direction.x = Number(moveRight) - Number(moveLeft);
+                direction.normalize();
+
+                const isMoving = moveForward || moveBackward || moveLeft || moveRight;
+
+                if (moveForward || moveBackward) velocity.z -= direction.z * 48.0 * delta;
+                if (moveLeft || moveRight) velocity.x -= direction.x * 48.0 * delta;
+
+                camera.translateX(-velocity.x * delta);
+                camera.translateZ(velocity.z * delta);
+
+                if (isMoving) {
+                    headBobTimer += delta * 10;
+                    camera.position.y = 2 + Math.sin(headBobTimer) * 0.08;
+                    playFootstepSound(); // SFX DIMAINKAN SAAT BERJALAN
+                } else {
+                    camera.position.y = 2;
+                }
+            }
+
+            if (is3DMode && camera) {
+                raycaster.setFromCamera(mouseCenter, camera);
+                const intersects = raycaster.intersectObjects(pictureFrameMeshes, true);
+
+                if (intersects.length > 0 && intersects[0].distance < 14) {
+                    let obj = intersects[0].object;
+                    while (obj.parent && !obj.userData.id) obj = obj.parent;
+
+                    if (obj && obj.userData && obj.userData.title) {
+                        window.hoveredPinData = obj.userData;
+                        fpsHoverText.textContent = `Klik / Tekan E: "${obj.userData.title}"`;
+                        fpsHoverLabel.style.left = '50%';
+                        fpsHoverLabel.style.top = '50%';
+                        fpsHoverLabel.classList.remove('hidden');
+
+                        if (window.justClickedFrame) {
+                            window.justClickedFrame = false;
+                            document.exitPointerLock();
+                            openPinModal(obj.userData);
+                        }
+                    }
+                } else {
+                    window.hoveredPinData = null;
+                    fpsHoverLabel.classList.add('hidden');
+                    window.justClickedFrame = false;
+                }
+            }
+
+            renderer.render(scene, camera);
+        }
+
+        document.getElementById('three-canvas').addEventListener('click', () => {
+            if (isPointerLocked && window.hoveredPinData) {
+                window.justClickedFrame = true;
+            }
+        });
+
+        // LOAD DATA
+        async function loadGalleryData(query) {
+            let pins = generateFallbackPins(query, 18);
+            loadedPins = pins;
+            build3DGalleryNodes(loadedPins);
+            render2DMasonry(loadedPins);
+        }
+
+        function generateFallbackPins(query, count) {
+            const list = [];
+            for (let i = 0; i < count; i++) {
+                const id = Math.floor(Math.random() * 9000) + 1000;
+                list.push({
+                    id: `pin-3d-${id}`,
+                    title: `Visi 3D ${capitalizeFirst(query)} #${i + 1}`,
+                    author: `Galeri_Seniman_${i + 1}`,
+                    avatar: `https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=100&fit=crop&q=80`,
+                    imageUrl: `https://picsum.photos/seed/${id + query}/800/1000`,
+                    downloadUrl: `https://picsum.photos/seed/${id + query}/1600/2000`,
+                    category: query,
+                    source: "Mesin 3D Verinris",
+                    description: `Pameran 3D virtual dengan gaya ${query}.`,
+                    tags: [query.toLowerCase(), "seni-3d"]
+                });
+            }
+            return list;
+        }
+
+        function capitalizeFirst(str) {
+            return str.charAt(0).toUpperCase() + str.slice(1);
+        }
+
+        function render2DMasonry(pins) {
+            masonryContainer.innerHTML = '';
+            pins.forEach(pin => {
+                const card = document.createElement('div');
+                card.className = 'masonry-item group relative bg-slate-900 rounded-2xl overflow-hidden shadow-md cursor-pointer border border-slate-800 hover:border-cyan-500/50 transition-all';
+                card.innerHTML = `
+                    <div class="relative overflow-hidden">
+                        <img src="${pin.imageUrl}" class="w-full h-auto block object-cover group-hover:scale-105 transition duration-500">
+                    </div>
+                    <div class="p-3 bg-slate-900/90 text-xs">
+                        <div class="font-bold text-white truncate">${pin.title}</div>
+                        <div class="text-[11px] text-slate-400 mt-0.5 flex items-center gap-1.5">
+                            <img src="${pin.avatar}" class="w-4 h-4 rounded-full">
+                            <span>${pin.author}</span>
+                        </div>
+                    </div>
+                `;
+                card.addEventListener('click', () => openPinModal(pin));
+                masonryContainer.appendChild(card);
+            });
+        }
+
+        function openPinModal(pin) {
+            activePin = pin;
+            modalImage.src = pin.imageUrl;
+            modalTitle.textContent = pin.title;
+            modalDescription.textContent = pin.description;
+            modalAuthor.textContent = pin.author;
+            modalAvatar.src = pin.avatar;
+            modalSourceBadge.textContent = pin.source;
+            modalDownloadBtn.href = pin.downloadUrl || pin.imageUrl;
+
+            modalTagsContainer.innerHTML = pin.tags.map(t => 
+                `<span class="px-2.5 py-1 rounded-full bg-slate-800 text-cyan-300 text-[11px] font-semibold">#${t}</span>`
+            ).join('');
+
+            updateModalSaveBtn();
+            pinModal.classList.remove('hidden');
+        }
+
+        function updateModalSaveBtn() {
+            if (!activePin) return;
+            const isSaved = savedPinIds.has(activePin.id);
+            if (isSaved) {
+                modalSaveBtn.className = 'px-6 py-2.5 rounded-full bg-slate-800 text-slate-200 font-bold text-sm shadow-md';
+                modalSaveBtn.querySelector('span').textContent = 'Tersimpan';
+            } else {
+                modalSaveBtn.className = 'px-6 py-2.5 rounded-full bg-brand-accent hover:bg-red-700 text-white font-bold text-sm shadow-md';
+                modalSaveBtn.querySelector('span').textContent = 'Simpan Pin';
+            }
+        }
+
+        modalSaveBtn.addEventListener('click', () => {
+            if (!activePin) return;
+            if (savedPinIds.has(activePin.id)) {
+                savedPinIds.delete(activePin.id);
+                showToast("Pin dihapus dari tersimpan");
+            } else {
+                savedPinIds.add(activePin.id);
+                showToast("Pin berhasil disimpan!");
+            }
+            localStorage.setItem('verinris_saved_pins', JSON.stringify([...savedPinIds]));
+            savedCountBadge.textContent = savedPinIds.size;
+            updateModalSaveBtn();
+        });
+
+        function showToast(msg) {
+            const toast = document.getElementById('toast');
+            document.getElementById('toast-message').textContent = msg;
+            toast.classList.remove('translate-y-20', 'opacity-0', 'pointer-events-none');
+            setTimeout(() => {
+                toast.classList.add('translate-y-20', 'opacity-0', 'pointer-events-none');
+            }, 3000);
+        }
+
+        function toggleViewMode() {
+            is3DMode = !is3DMode;
+            if (is3DMode) {
+                fpsViewContainer.classList.remove('hidden');
+                masonryViewContainer.classList.add('hidden');
+                viewModeText.textContent = "Kembali ke Feed 2D";
+                camera.position.set(0, 2, 8);
+                pitch = 0; yaw = 0;
+            } else {
+                if (document.pointerLockElement) document.exitPointerLock();
+                fpsViewContainer.classList.add('hidden');
+                masonryViewContainer.classList.remove('hidden');
+                viewModeText.textContent = "Masuk Mode Galeri 3D FPS";
+            }
+        }
+
+        viewModeToggle.addEventListener('click', toggleViewMode);
+        switchTo3dBtn.addEventListener('click', toggleViewMode);
+        exit3dHudBtn.addEventListener('click', () => { if (is3DMode) toggleViewMode(); });
+
+        document.querySelectorAll('.cat-chip').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                document.querySelectorAll('.cat-chip').forEach(b => {
+                    b.className = 'cat-chip px-4 py-2 rounded-full bg-slate-900 hover:bg-slate-800 text-slate-300 font-semibold border border-slate-800 transition shrink-0';
+                });
+                e.target.className = 'cat-chip px-4 py-2 rounded-full bg-white text-slate-900 font-bold shadow transition shrink-0';
+                currentQuery = e.target.getAttribute('data-category');
+                loadGalleryData(currentQuery);
+            });
+        });
+
+        searchForm.addEventListener('submit', (e) => {
+            e.preventDefault();
+            const val = searchInput.value.trim();
+            if (!val) return;
+            currentQuery = val;
+            clearSearchBtn.classList.remove('hidden');
+            loadGalleryData(currentQuery);
+        });
+
+        clearSearchBtn.addEventListener('click', () => {
+            searchInput.value = '';
+            clearSearchBtn.classList.add('hidden');
+            currentQuery = 'Cyberpunk';
+            loadGalleryData(currentQuery);
+        });
+
+        closeModalBtn.addEventListener('click', () => pinModal.classList.add('hidden'));
+        modalCloseReturn3d.addEventListener('click', () => {
+            pinModal.classList.add('hidden');
+            if (is3DMode) document.getElementById('three-canvas').requestPointerLock();
+        });
+
+        navBackendBtn.addEventListener('click', () => codeDrawerModal.classList.remove('hidden'));
+        closeCodeDrawerBtn.addEventListener('click', () => codeDrawerModal.classList.add('hidden'));
+
+        uploadPinBtn.addEventListener('click', () => uploadModal.classList.remove('hidden'));
+        closeUploadBtn.addEventListener('click', () => uploadModal.classList.add('hidden'));
+
+        uploadForm.addEventListener('submit', (e) => {
+            e.preventDefault();
+            const customPin = {
+                id: `pin-custom-${Date.now()}`,
+                title: document.getElementById('up-title').value,
+                author: "Anda",
+                avatar: "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=100&fit=crop&q=80",
+                imageUrl: document.getElementById('up-url').value,
+                downloadUrl: document.getElementById('up-url').value,
+                category: "Kustom",
+                source: "Mesin 3D Verinris",
+                description: "Karya visual kustom.",
+                tags: ["kustom"]
+            };
+
+            loadedPins.unshift(customPin);
+            build3DGalleryNodes(loadedPins);
+            render2DMasonry(loadedPins);
+            uploadModal.classList.add('hidden');
+            uploadForm.reset();
+            showToast("Karya seni berhasil ditambahkan!");
+        });
+
+        window.onload = function() {
+            savedCountBadge.textContent = savedPinIds.size;
+            init3DWorld();
+            loadGalleryData(currentQuery);
+        };
+    </script>
+</body>
+</html>
